@@ -1,28 +1,40 @@
-FROM node:22-alpine
+# ─── Stage 1: Builder ───────────────────────────────────────────────────────
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# Install dependencies first (better layer caching)
 COPY package*.json ./
+RUN npm ci --include=dev
 
-RUN apk add --no-cache git tini
+# Copy source code
+COPY . .
 
-RUN npm install
+# Build client (Vite) + server bundle
+RUN npm run build
 
-EXPOSE 5480 5481
+# ─── Stage 2: Production image ───────────────────────────────────────────────
+FROM node:22-alpine AS runner
 
-ENV VITE_DOCKER_MODE=true
+RUN apk add --no-cache tini
 
-# App server port
+WORKDIR /app
+
+# Copy only production dependencies manifest, then install prod deps
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Copy compiled output from builder
+COPY --from=builder /app/dist ./dist
+
+# Copy schema file needed at runtime
+COPY kottster-app.json ./kottster-app.json
+
+EXPOSE 5480
+
+# App server port (used by @kottster/server at runtime)
 ENV PORT=5480
-
-# Development API server port
-ENV DEV_API_SERVER_PORT=5481
-
-COPY scripts/dev.sh /dev.sh
-COPY scripts/prod.sh /prod.sh
-RUN chmod +x /dev.sh /prod.sh
+ENV NODE_ENV=production
 
 ENTRYPOINT ["/sbin/tini", "--"]
-
-# This is a dummy command to keep the container running
-CMD ["tail", "-f", "/dev/null"]
+CMD ["node", "dist/server/server.cjs"]

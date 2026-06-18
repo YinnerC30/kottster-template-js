@@ -1,139 +1,99 @@
 # Kottster App
 
-This template provides two methods to get started with Kottster:
-- **Option 1:** Using Docker Compose (recommended for most users)
-- **Option 2:** Using Docker commands directly
+This template ships with a production-ready `Dockerfile` and `docker-compose.yml` so you can deploy it easily on **Dokploy**, **Coolify**, or any other Docker-based PaaS — or run it locally with a single command.
 
-Both the `Dockerfile` and `docker-compose.yml` are already included in the repository for your convenience.
+---
 
-## Option 1: Using Docker Compose
+## 🚀 Deploy on Dokploy (recommended)
 
-### 1. Clone the repository
+### 1. Add your repository to Dokploy
+
+Connect your Git repository in the Dokploy dashboard and choose **Docker Compose** as the deploy method.
+
+### 2. Set Environment Variables
+
+In the Dokploy service → **Environment Variables** tab, add:
+
+| Variable | Description | Required |
+|---|---|---|
+| `SECRET_KEY` | Random secret for the app (32+ chars) | ✅ |
+| `JWT_SECRET_SALT` | Random salt for JWT tokens (32+ chars) | ✅ |
+| `ROOT_PASSWORD` | Password for the admin account | ✅ |
+| `ROOT_USERNAME` | Username for the admin account | optional (default: `admin`) |
+| `HOST_PORT` | Host port to expose | optional (default: `5480`) |
+
+**Generate secrets quickly:**
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+### 3. Deploy
+
+Click **Deploy** in Dokploy. The build pipeline will:
+1. Install all dependencies
+2. Build the Vite client bundle
+3. Bundle the server with `kottster build:server`
+4. Start the production server automatically on port 5480
+
+---
+
+## 💻 Run Locally with Docker Compose
+
+### 1. Clone and configure
 
 ```bash
 git clone https://github.com/kottster/kottster-template-js my-kottster-app
-
 cd my-kottster-app
+
+# Create your local env file from the template
+cp .env.example .env
+# Edit .env and fill in real values
 ```
 
-### 2. Start the container
+### 2. Start
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-> **IMPORTANT:** The `-d` flag is crucial as it runs the container in detached mode (background). Without this flag, your terminal will be locked to the container's output, and you won't be able to run the next command to start the application.
+The app will be available at **http://localhost:5480**.
 
-### 3. Start the application
-
-**Development mode:**
-```bash
-docker exec -it my-kottster-container /dev.sh
-```
-
-**Production mode:**
-```bash
-docker exec -it my-kottster-container /prod.sh
-```
-
-### 4. Container Management
-
-**Stop the container:**
-```bash
-docker-compose down
-```
-
-**View container logs:**
-```bash
-docker-compose logs
-```
-
-## Option 2: Using Docker Commands
-
-### 1. Clone the repository
+### 3. Manage
 
 ```bash
-git clone https://github.com/kottster/kottster-template-js my-kottster-app
+# View logs
+docker compose logs -f
 
-cd my-kottster-app
+# Stop
+docker compose down
+
+# Stop and remove persistent data
+docker compose down -v
 ```
 
-### 2. Build the Docker image
+---
+
+## 🔐 Security Notes
+
+- **Never commit** the `.env` file — it is listed in `.gitignore`.
+- Change `SECRET_KEY`, `JWT_SECRET_SALT`, and `ROOT_PASSWORD` before your first deploy.
+- The SQLite database is stored in a named Docker volume (`kottster_data`) so it survives container restarts and re-deployments.
+
+---
+
+## ⚙️ Configuration
+
+### Changing the exposed port
+
+Edit `HOST_PORT` in your `.env` file (local) or in the Dokploy environment variables (production):
+
+```env
+HOST_PORT=8080
+```
+
+### Development mode (local, without Docker)
 
 ```bash
-docker build -t my-kottster-app .
-```
-
-### 3. Run the container
-
-```bash
-docker run -d --name my-kottster-container \
-  -p 5480:5480 -p 5481:5481 \
-  -v $(pwd):/app \
-  -v /app/node_modules \
-  my-kottster-app
-```
-
-> Here's what each flag does:
-> - `-d` - Run the container in the background
-> - `--name my-kottster-container` - Assign a name to the container
-> - `-p 5480:5480 -p 5481:5481` - Map the container ports to the host machine
-> - `-v $(pwd):/app` - Mount the current directory to the `/app` directory in the container
-> - `-v /app/node_modules` - Mount the `node_modules` directory to the container
-
-### 4. Start the application
-
-**Development mode:**
-```bash
-docker exec -it my-kottster-container /dev.sh
-```
-
-**Production mode:**
-```bash
-docker exec -it my-kottster-container /prod.sh
-```
-
-### 5. Container Management
-
-**Stop the container:**
-```bash
-docker stop my-kottster-container
-```
-
-**Remove the container:**
-```bash
-docker rm my-kottster-container
-```
-
-**View container logs:**
-```bash
-docker logs my-kottster-container
-```
-
-## Development
-
-The container is configured to synchronize your local codebase with the container. Any changes made to your local files will be immediately reflected in the running application.
-
-## Configuration
-
-### Customizing Ports
-
-#### With Docker Compose:
-Edit the `ports` section in your `docker-compose.yml` file:
-
-```yaml
-ports:
-  - "<host-port>:5480"
-  - "<host-port>:5481"
-```
-
-#### With Docker commands:
-Modify the `-p` flags in the Docker run command:
-
-```bash
-docker run -d --name my-kottster-container \
-  -p <host-port>:5480 -p <host-port>:5481 \
-  -v $(pwd):/app \
-  -v /app/node_modules \
-  my-kottster-app
+npm install
+npm run dev
 ```

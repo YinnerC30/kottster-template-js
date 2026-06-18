@@ -1,5 +1,8 @@
 node_modules
-nbuild
+dist
 npm-debug.log
 .DS_Store
 .cache
+
+# Local environment secrets – never commit this file
+.env
